@@ -1,0 +1,34 @@
+﻿```cshtml
+@{
+    ViewBag.Title = "Mini Social Media";
+}
+
+<div class="container mt-4">
+    <h1 class="text-center">MINI SOCIAL MEDIA</h1>
+    <p class="text-center text-muted">
+        Chia sẻ suy nghĩ và kết nối với mọi người
+    </p>
+
+    <hr />
+
+    <div class="text-center mb-4">
+        <a href="@Url.Action("Index", "Post")"
+           class="btn btn-primary">
+            Xem bài viết
+        </a>
+
+        <a href="@Url.Action("Create", "Post")"
+           class="btn btn-success">
+            Đăng bài viết
+        </a>
+    </div>
+
+    <div class="card p-4">
+        <h3>Chào mừng đến với Mini Social Media!</h3>
+        <p>
+            Đây là website mạng xã hội mini giúp người dùng
+            đăng bài viết, chia sẻ nội dung và tương tác với nhau.
+        </p>
+    </div>
+</div>
+```

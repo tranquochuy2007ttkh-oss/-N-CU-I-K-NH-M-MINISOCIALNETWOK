@@ -1,0 +1,117 @@
+﻿```cshtml
+@model IEnumerable<MiniSocialMedia.Models.User>
+
+@{
+    ViewBag.Title = "Danh sách người dùng";
+
+    var followingIds = ViewBag.FollowingIds as List<int>
+                       ?? new List<int>();
+
+    int currentUserId = ViewBag.CurrentUserId;
+}
+
+<div class="container mt-4">
+
+    <h2 class="text-center">DANH SÁCH NGƯỜI DÙNG</h2>
+
+    <hr />
+
+    @if (TempData["Message"] != null)
+    {
+        <div class="alert alert-info">
+            @TempData["Message"]
+        </div>
+    }
+
+    @using (Html.BeginForm("Index", "User", FormMethod.Get))
+    {
+        <div class="input-group mb-3">
+
+            <input type="text"
+                   name="searchString"
+                   class="form-control"
+                   placeholder="Tìm kiếm người dùng..."
+                   value="@ViewBag.SearchString" />
+
+            <button type="submit" class="btn btn-primary">
+                Tìm kiếm
+            </button>
+
+            <a href="@Url.Action("Index", "User")"
+               class="btn btn-secondary">
+                Làm mới
+            </a>
+
+        </div>
+    }
+
+    <table class="table table-bordered table-striped">
+
+        <thead>
+            <tr>
+                <th>Mã người dùng</th>
+                <th>Username</th>
+                <th>Họ tên</th>
+                <th>Email</th>
+                <th>Ngày tạo</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var user in Model)
+            {
+                <tr>
+                    <td>@user.UserId</td>
+                    <td>@user.Username</td>
+                    <td>@user.FullName</td>
+                    <td>@user.Email</td>
+                    <td>@user.CreatedAt</td>
+
+                    <td>
+                        @if (user.UserId == currentUserId)
+                        {
+                            <span class="text-muted">Tài khoản của bạn</span>
+                        }
+                        else
+                        {
+                            using (Html.BeginForm("ToggleFollow", "User",
+                                FormMethod.Post, new { @class = "d-inline" }))
+                            {
+                                @Html.AntiForgeryToken()
+
+                                <input type="hidden"
+                                       name="followingId"
+                                       value="@user.UserId" />
+
+                                if (followingIds.Contains(user.UserId))
+                                {
+                                    <button type="submit"
+                                            class="btn btn-secondary btn-sm">
+                                        Đang theo dõi
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="submit"
+                                            class="btn btn-success btn-sm">
+                                        Theo dõi
+                                    </button>
+                                }
+                            }
+                        }
+
+                        <a href="@Url.Action("Edit", "User",
+                            new { id = user.UserId })"
+                           class="btn btn-warning btn-sm">
+                            Sửa
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+
+    </table>
+
+</div>
+```

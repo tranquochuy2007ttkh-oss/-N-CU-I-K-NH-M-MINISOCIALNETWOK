@@ -1,0 +1,47 @@
+﻿```cshtml
+@model MiniSocialMedia.Models.Post
+
+@{
+    ViewBag.Title = "Chỉnh sửa bài viết";
+}
+
+<div class="container mt-4">
+    <div class="card p-4">
+        <h2>CHỈNH SỬA BÀI VIẾT</h2>
+
+        @using (Html.BeginForm("EditPost", "Post", FormMethod.Post))
+        {
+            @Html.AntiForgeryToken()
+
+            @Html.HiddenFor(m => m.PostId)
+
+            <div class="form-group mb-3">
+                <label>Nội dung bài viết</label>
+
+                @Html.TextAreaFor(
+                    m => m.Content,
+                    new
+                         {
+                        @class = "form-control",
+                        rows = 5,
+                        placeholder = "Nhập nội dung bài viết..."
+                    })
+
+                @Html.ValidationMessageFor(
+                    m => m.Content,
+                    "",
+                    new { @class = "text-danger" })
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                Lưu thay đổi
+            </button>
+
+            <a href="@Url.Action("Newsfeed", "Post")"
+               class="btn btn-secondary">
+                Quay lại
+            </a>
+        }
+    </div>
+</div>
+```
