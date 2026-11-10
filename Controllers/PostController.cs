@@ -7,18 +7,29 @@ using System.IO;
 using System.Linq;
 using System.Web;
 using System.Web.Mvc;
+
 namespace MiniSocialMedia.Controllers
 {
     public class PostController : Controller
     {
         private MyDbContext db = new MyDbContext();
 
-        // Lấy ID người dùng đang đăng nhập từ Session
         private int GetCurrentUserId()
         {
-            return Session["UserId"] != null ? (int)Session["UserId"] : 1; // Giả lập UserId = 1 nếu chưa đăng nhập
+            return Session["UserId"] != null ? (int)Session["UserId"] : 1;
         }
-        // GET: Post
+
+        public ActionResult Index(string searchString, int? page)
+        {
+            return RedirectToAction("Newsfeed", new { searchString = searchString, page = page });
+        }
+
+        [HttpGet]
+        public ActionResult Create()
+        {
+            return RedirectToAction("Newsfeed");
+        }
+
         public ActionResult Newsfeed(string searchString, int? page)
         {
             int currentUserId = GetCurrentUserId();
@@ -31,19 +42,14 @@ namespace MiniSocialMedia.Controllers
                 .ToList();
 
             var postsQuery = db.Posts
-                .Where(p => p.UserId == currentUserId ||
-                            followingIds.Contains(p.UserId));
+                .Where(p => p.UserId == currentUserId || followingIds.Contains(p.UserId));
 
-            // Tìm kiếm theo nội dung bài viết
             if (!string.IsNullOrWhiteSpace(searchString))
             {
-                postsQuery = postsQuery.Where(p =>
-                    p.Content.Contains(searchString));
+                postsQuery = postsQuery.Where(p => p.Content.Contains(searchString));
             }
 
-            // Sắp xếp bài viết mới nhất
-            postsQuery = postsQuery
-                .OrderByDescending(p => p.CreatedAt);
+            postsQuery = postsQuery.OrderByDescending(p => p.CreatedAt);
 
             var viewModel = new NewsfeedVM
             {
@@ -51,28 +57,25 @@ namespace MiniSocialMedia.Controllers
                 CurrentUserId = currentUserId
             };
 
-            // Lấy ID các bài viết đang hiển thị
             var postIds = viewModel.Posts
                 .Select(p => p.PostId)
                 .ToList();
 
-            // Lấy tổng số lượt Like của từng bài viết
             ViewBag.LikeCounts = db.Likes
-                .Where(l => postIds.Contains(l.PostId))
-                .GroupBy(l => l.PostId)
+                .Where(l => postIds.Contains(l.PostID))
+                .GroupBy(l => l.PostID)
                 .ToDictionary(g => g.Key, g => g.Count());
 
-            // Lấy danh sách bài viết mà người dùng hiện tại đã Like
             ViewBag.LikedPostIds = db.Likes
-                .Where(l => postIds.Contains(l.PostId)
-                         && l.UserId == currentUserId)
-                .Select(l => l.PostId)
+                .Where(l => postIds.Contains(l.PostID) && l.UserID == currentUserId)
+                .Select(l => l.PostID)
                 .ToList();
 
             ViewBag.SearchString = searchString;
 
             return View(viewModel);
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         [ValidateInput(false)]
@@ -80,22 +83,51 @@ namespace MiniSocialMedia.Controllers
         {
             int currentUserId = GetCurrentUserId();
 
-            if (string.IsNullOrWhiteSpace(Content))
+            if (string.IsNullOrWhiteSpace(Content) && (ImageFile == null || ImageFile.ContentLength == 0))
             {
-                TempData["Message"] = "Nội dung bài viết không được để trống!";
+                TempData["Message"] = "Vui lòng nhập nội dung hoặc chọn ảnh để đăng bài!";
                 return RedirectToAction("Newsfeed");
             }
 
-            if (Content.Trim().Length > 2000)
+            if (!string.IsNullOrWhiteSpace(Content) && Content.Trim().Length > 2000)
             {
                 TempData["Message"] = "Nội dung không được vượt quá 2000 ký tự!";
                 return RedirectToAction("Newsfeed");
             }
 
+            string imageUrl = null;
+
+            if (ImageFile != null && ImageFile.ContentLength > 0)
+            {
+                try
+                {
+                    string fileName = Path.GetFileName(ImageFile.FileName);
+                    string extension = Path.GetExtension(fileName);
+                    string uniqueFileName = Guid.NewGuid().ToString() + extension;
+
+                    string uploadDir = Server.MapPath("~/Content/Uploads/");
+                    if (!Directory.Exists(uploadDir))
+                    {
+                        Directory.CreateDirectory(uploadDir);
+                    }
+
+                    string path = Path.Combine(uploadDir, uniqueFileName);
+                    ImageFile.SaveAs(path);
+
+                    imageUrl = "/Content/Uploads/" + uniqueFileName;
+                }
+                catch (Exception ex)
+                {
+                    TempData["Message"] = "Lỗi khi tải ảnh lên: " + ex.Message;
+                    return RedirectToAction("Newsfeed");
+                }
+            }
+
             var post = new Post
             {
                 UserId = currentUserId,
-                Content = Content.Trim(),
+                Content = Content != null ? Content.Trim() : "",
+                ImageUrl = imageUrl,
                 CreatedAt = DateTime.Now
             };
 
@@ -106,11 +138,11 @@ namespace MiniSocialMedia.Controllers
 
             return RedirectToAction("Newsfeed");
         }
+
         public ActionResult CreateComment(int postId, string Content)
         {
             int currentUserId = GetCurrentUserId();
 
-            // Kiểm tra bài viết có tồn tại không
             var post = db.Posts.Find(postId);
 
             if (post == null)
@@ -119,7 +151,6 @@ namespace MiniSocialMedia.Controllers
                 return RedirectToAction("Newsfeed");
             }
 
-            // Kiểm tra nội dung
             if (string.IsNullOrWhiteSpace(Content))
             {
                 TempData["Message"] = "Nội dung bình luận không được để trống!";
@@ -132,11 +163,10 @@ namespace MiniSocialMedia.Controllers
                 return RedirectToAction("Newsfeed");
             }
 
-            // Tạo bình luận mới
             var comment = new Comment
             {
-                PostId = postId,
-                UserId = currentUserId,
+                PostID = postId,
+                UserID = currentUserId,
                 Content = Content.Trim(),
                 CreatedAt = DateTime.Now
             };
@@ -148,6 +178,7 @@ namespace MiniSocialMedia.Controllers
 
             return RedirectToAction("Newsfeed");
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public ActionResult DeleteComment(int id)
@@ -162,7 +193,7 @@ namespace MiniSocialMedia.Controllers
                 return RedirectToAction("Newsfeed");
             }
 
-            if (comment.UserId != currentUserId)
+            if (comment.UserID != currentUserId)
             {
                 TempData["Message"] = "Bạn không có quyền xóa bình luận này!";
                 return RedirectToAction("Newsfeed");
@@ -175,14 +206,13 @@ namespace MiniSocialMedia.Controllers
 
             return RedirectToAction("Newsfeed");
         }
-        // SỬA BÌNH LUẬN
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public ActionResult EditComment(int id, string Content)
         {
             int currentUserId = GetCurrentUserId();
 
-            // Tìm bình luận cần sửa
             var comment = db.Comments.Find(id);
 
             if (comment == null)
@@ -191,14 +221,12 @@ namespace MiniSocialMedia.Controllers
                 return RedirectToAction("Newsfeed");
             }
 
-            // Chỉ người tạo bình luận mới được sửa
-            if (comment.UserId != currentUserId)
+            if (comment.UserID != currentUserId)
             {
                 TempData["Message"] = "Bạn không có quyền sửa bình luận này!";
                 return RedirectToAction("Newsfeed");
             }
 
-            // Kiểm tra nội dung
             if (string.IsNullOrWhiteSpace(Content))
             {
                 TempData["Message"] = "Nội dung bình luận không được để trống!";
@@ -211,9 +239,7 @@ namespace MiniSocialMedia.Controllers
                 return RedirectToAction("Newsfeed");
             }
 
-            // Cập nhật nội dung bình luận
             comment.Content = Content.Trim();
-
             db.SaveChanges();
 
             TempData["Message"] = "Sửa bình luận thành công!";
@@ -221,9 +247,7 @@ namespace MiniSocialMedia.Controllers
             return RedirectToAction("Newsfeed");
         }
 
-        // 3. XÓA BÀI ĐĂNG (Ràng buộc nghiệp vụ: Chỉ xóa bài của chính mình)
         [HttpPost]
-        // POST: Post/DeletePost
         [ValidateAntiForgeryToken]
         public ActionResult DeletePost(int id)
         {
@@ -237,7 +261,6 @@ namespace MiniSocialMedia.Controllers
                 return RedirectToAction("Newsfeed");
             }
 
-            // Chỉ chủ bài viết mới được xóa
             if (post.UserId != currentUserId)
             {
                 TempData["Message"] = "Bạn không có quyền xóa bài viết này!";
@@ -252,8 +275,6 @@ namespace MiniSocialMedia.Controllers
             return RedirectToAction("Newsfeed");
         }
 
-        // 4. THẢ LIKE / UNLIKE (AJAX)
-        // GET: Post/EditPost/1
         [HttpGet]
         public ActionResult EditPost(int id)
         {
@@ -266,18 +287,18 @@ namespace MiniSocialMedia.Controllers
                 return HttpNotFound("Bài viết không tồn tại.");
             }
 
-            // Chỉ chủ bài viết mới được sửa
             if (post.UserId != currentUserId)
             {
-                return new HttpStatusCodeResult(
-                    403, "Bạn không có quyền sửa bài viết này.");
+                return new HttpStatusCodeResult(403, "Bạn không có quyền sửa bài viết này.");
             }
 
             return View(post);
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult EditPost(Post model)
+        [ValidateInput(false)]
+        public ActionResult EditPost(Post model, HttpPostedFileBase ImageFile, bool removeImage = false)
         {
             int currentUserId = GetCurrentUserId();
 
@@ -288,24 +309,22 @@ namespace MiniSocialMedia.Controllers
                 return HttpNotFound("Bài viết không tồn tại.");
             }
 
-            // Kiểm tra quyền sở hữu
             if (post.UserId != currentUserId)
             {
-                return new HttpStatusCodeResult(403);
+                return new HttpStatusCodeResult(403, "Bạn không có quyền sửa bài viết này.");
             }
 
-            // Kiểm tra nội dung
-            if (string.IsNullOrWhiteSpace(model.Content))
+            string updatedContent = model.Content != null ? model.Content.Trim() : "";
+            bool willHaveImage = (ImageFile != null && ImageFile.ContentLength > 0) || (!removeImage && !string.IsNullOrEmpty(post.ImageUrl));
+
+            if (string.IsNullOrWhiteSpace(updatedContent) && !willHaveImage)
             {
-                ModelState.AddModelError(
-                    "Content",
-                    "Nội dung không được để trống.");
+                ModelState.AddModelError("Content", "Bài viết phải có ít nhất nội dung hoặc hình ảnh!");
             }
-            else if (model.Content.Trim().Length > 2000)
+
+            if (updatedContent.Length > 2000)
             {
-                ModelState.AddModelError(
-                    "Content",
-                    "Nội dung tối đa 2000 ký tự.");
+                ModelState.AddModelError("Content", "Nội dung không được vượt quá 2000 ký tự!");
             }
 
             if (!ModelState.IsValid)
@@ -313,69 +332,95 @@ namespace MiniSocialMedia.Controllers
                 return View(post);
             }
 
-            post.Content = model.Content.Trim();
+            if (removeImage)
+            {
+                post.ImageUrl = null;
+            }
 
+            if (ImageFile != null && ImageFile.ContentLength > 0)
+            {
+                try
+                {
+                    string fileName = Path.GetFileName(ImageFile.FileName);
+                    string extension = Path.GetExtension(fileName);
+                    string uniqueFileName = Guid.NewGuid().ToString() + extension;
+
+                    string uploadDir = Server.MapPath("~/Content/Uploads/");
+                    if (!Directory.Exists(uploadDir))
+                    {
+                        Directory.CreateDirectory(uploadDir);
+                    }
+
+                    string path = Path.Combine(uploadDir, uniqueFileName);
+                    ImageFile.SaveAs(path);
+
+                    post.ImageUrl = "/Content/Uploads/" + uniqueFileName;
+                }
+                catch (Exception ex)
+                {
+                    ModelState.AddModelError("", "Lỗi khi tải ảnh mới: " + ex.Message);
+                    return View(post);
+                }
+            }
+
+            post.Content = updatedContent;
             db.SaveChanges();
 
             TempData["Message"] = "Cập nhật bài viết thành công!";
 
             return RedirectToAction("Newsfeed");
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult ToggleLike(int postId)
+        public ActionResult ToggleLike(int postId, string type = "Like")
         {
             int currentUserId = GetCurrentUserId();
 
-            // Kiểm tra bài viết có tồn tại không
             var post = db.Posts.Find(postId);
 
             if (post == null)
             {
-                return Json(new
-                {
-                    success = false,
-                    message = "Bài viết không tồn tại!"
-                });
+                return Json(new { success = false, message = "Bài viết không tồn tại!" });
             }
 
-            // Kiểm tra người dùng đã Like bài viết chưa
-            var existingLike = db.Likes.FirstOrDefault(l =>
-                l.PostId == postId &&
-                l.UserId == currentUserId);
+            var existingLike = db.Likes.FirstOrDefault(l => l.PostID == postId && l.UserID == currentUserId);
 
-            bool isLiked;
+            string userReaction = null;
 
             if (existingLike != null)
             {
-                // Đã Like thì xóa để Unlike
-                db.Likes.Remove(existingLike);
-                isLiked = false;
+                if (existingLike.ReactionType == type)
+                {
+                    db.Likes.Remove(existingLike);
+                    userReaction = null;
+                }
+                else
+                {
+                    existingLike.ReactionType = type;
+                    userReaction = type;
+                }
             }
             else
             {
-                // Chưa Like thì thêm mới
                 db.Likes.Add(new Like
                 {
-                    PostId = postId,
-                    UserId = currentUserId,
+                    PostID = postId,
+                    UserID = currentUserId,
+                    ReactionType = type,
                     CreatedAt = DateTime.Now
                 });
 
-                isLiked = true;
+                userReaction = type;
             }
 
             db.SaveChanges();
 
-            int totalLikes = db.Likes.Count(l => l.PostId == postId);
+            int totalLikes = db.Likes.Count(l => l.PostID == postId);
 
-            return Json(new
-            {
-                success = true,
-                isLiked = isLiked,
-                totalLikes = totalLikes
-            });
+            return Json(new { success = true, userReaction = userReaction, totalLikes = totalLikes });
         }
+
         public ActionResult TestConnection()
         {
             try
@@ -383,11 +428,7 @@ namespace MiniSocialMedia.Controllers
                 using (var db = new MyDbContext())
                 {
                     int count = db.Posts.Count();
-
-                    return Content(
-                        "Kết nối SQL Server thành công! " +
-                        "Số bài viết: " + count
-                    );
+                    return Content("Kết nối SQL Server thành công! Số bài viết: " + count);
                 }
             }
             catch (Exception ex)

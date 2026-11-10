@@ -1,319 +1,316 @@
-﻿```cshtml
-@using System.Collections.Generic
+﻿@using System.Collections.Generic
+@using System.Linq
 @model MiniSocialMedia.Models.ViewModle.NewsfeedVM
 @{
-    var likeCounts = ViewBag.LikeCounts as Dictionary<int, int>
-                     ?? new Dictionary<int, int>();
-
-    var likedPostIds = ViewBag.LikedPostIds as List<int>
-                       ?? new List<int>();
-}
-
-@{
+    var likeCounts = ViewBag.LikeCounts as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var likedPostIds = ViewBag.LikedPostIds as List<int> ?? new List<int>();
     ViewBag.Title = "Bảng tin";
 }
 
-<div class="container mt-4">
+<style>
+    body {
+        background-color: #f0f2f5;
+    }
+
+    .card {
+        border: none !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+    }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 10px;
+        border: 1px solid #ddd;
+    }
+
+    .sidebar-sticky {
+        position: sticky;
+        top: 80px;
+    }
+
+    .reaction-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .reaction-box {
+        display: none;
+        position: absolute;
+        bottom: 110%;
+        left: 0;
+        background: #fff;
+        border-radius: 30px;
+        padding: 5px 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        white-space: nowrap;
+        z-index: 1000;
+    }
+
+    .reaction-container:hover .reaction-box {
+        display: flex;
+        gap: 8px;
+    }
+
+    .reaction-icon {
+        font-size: 24px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+        .reaction-icon:hover {
+            transform: scale(1.4);
+        }
+</style>
+
+<div class="container-fluid py-4" style="max-width: 1200px;">
     @if (TempData["Message"] != null)
     {
-        <div class="alert alert-info">
-            @TempData["Message"]
-        </div>
+        <div class="alert alert-info">@TempData["Message"]</div>
     }
 
-    <h2 class="text-center">BẢNG TIN MINI SOCIAL MEDIA</h2>
-
-    <hr />
-
-    <div class="card p-3 mb-4">
-        <h4>Bạn đang nghĩ gì?</h4>
-
-        @using (Html.BeginForm("CreatePost", "Post",
-            FormMethod.Post,
-            new { enctype = "multipart/form-data" }))
-        {
-            @Html.AntiForgeryToken()
-
-            <textarea name="Content"
-                      class="form-control"
-                      rows="4"
-                      placeholder="Nhập nội dung bài viết..."
-                      required></textarea>
-
-            <br />
-
-            <input type="file"
-                   name="ImageFile"
-                   accept="image/*"
-                   class="form-control" />
-
-            <br />
-
-            <button type="submit" class="btn btn-primary">
-                Đăng bài viết
-            </button>
-        }
-    </div>
-
-    <h4>Bài viết mới nhất</h4>
-
-    @using (Html.BeginForm("Newsfeed", "Post", FormMethod.Get))
-    {
-        <div class="input-group mb-3">
-
-            <input type="text"
-                   name="searchString"
-                   class="form-control"
-                   placeholder="Tìm kiếm bài viết..."
-                   value="@ViewBag.SearchString" />
-
-            <button type="submit" class="btn btn-primary">
-                Tìm kiếm
-            </button>
-
-            <a href="@Url.Action("Newsfeed", "Post")"
-               class="btn btn-secondary">
-                Làm mới
-            </a>
-
-        </div>
-    }
-
-    <hr />
-
-    @if (Model.Posts != null && Model.Posts.Any())
-    {
-        foreach (var post in Model.Posts)
-        {
-            <div class="card p-3 mb-3">
-
-                <h5>Bài viết #@post.PostId</h5>
-
-                <p style="white-space: pre-wrap;">
-                    @post.Content
-                </p>
-
-                @if (!string.IsNullOrEmpty(post.ImageUrl))
-                {
-                    <img src="@post.ImageUrl"
-                         class="img-fluid"
-                         style="max-width: 400px;" />
-                }
-
-                <small class="text-muted">
-                    Ngày đăng: @post.CreatedAt
-                </small>
-
-                <div class="mt-2 mb-3">
-
-                    @using (Html.BeginForm("ToggleLike", "Post", FormMethod.Post,
-                        new { @class = "like-form" }))
-                    {
-                        @Html.AntiForgeryToken()
-
-                        <input type="hidden"
-                               name="postId"
-                               value="@post.PostId" />
-
-                        <button type="submit"
-                                class="btn btn-sm @(likedPostIds.Contains(post.PostId) ? "btn-primary" : "btn-outline-primary")">
-
-                            @(likedPostIds.Contains(post.PostId) ? "❤️ Đã thích" : "🤍 Like")
-
-                        </button>
-
-                        <span class="ms-2">
-                            ❤️ <span class="like-count">
-                                @(likeCounts.ContainsKey(post.PostId)
-                    ? likeCounts[post.PostId] : 0)
-                            </span> lượt thích
-                        </span>
-                    }
-
+    <div class="row">
+        <div class="col-md-3 d-none d-md-block">
+            <div class="sidebar-sticky">
+                <div class="card p-3 text-center">
+                    <img src="https://cdn.icon-icons.com/icons2/1378/PNG/512/avatardefault_92824.png" class="rounded-circle mx-auto mb-2" style="width: 80px; height: 80px; object-fit: cover;" alt="Avatar" />
+                    <h5 class="fw-bold mb-1">Tài khoản</h5>
+                    <p class="text-muted small mb-3">Thành viên hệ thống</p>
+                    <hr />
+                    <div class="text-start small text-muted">
+                        <p class="mb-2">🌐 Trạng thái: Hoạt động</p>
+                        <p class="mb-2">🔒 Bảo mật: Đã xác thực</p>
+                    </div>
                 </div>
 
-                <hr />
+                <div class="card p-3">
+                    <h6 class="fw-bold text-secondary mb-3">Khám phá</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="mb-2">👥 Nhóm công khai</li>
+                        <li class="mb-2">🔥 Xu hướng mới</li>
+                        <li>⚙️ Cài đặt tài khoản</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
 
-                <h6>Bình luận</h6>
-
-                @using (Html.BeginForm("CreateComment", "Post", FormMethod.Post))
+        <div class="col-md-6">
+            <div class="card p-3 mb-3">
+                <h5 class="mb-3 text-secondary">Bạn đang nghĩ gì?</h5>
+                @using (Html.BeginForm("CreatePost", "Post", FormMethod.Post, new { enctype = "multipart/form-data" }))
                 {
                     @Html.AntiForgeryToken()
-
-                    <input type="hidden" name="postId" value="@post.PostId" />
-
-                    <div class="input-group mb-3">
-                        <input type="text"
-                               name="Content"
-                               class="form-control"
-                               placeholder="Viết bình luận..."
-                               maxlength="1000"
-                               required />
-
-                        <button type="submit" class="btn btn-primary">
-                            Bình luận
-                        </button>
+                    <textarea name="Content" class="form-control mb-3" rows="3" placeholder="Nhập nội dung bài viết..." style="border-radius: 8px; resize: none;" required></textarea>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <input type="file" name="ImageFile" accept="image/*" class="form-control form-control-sm w-50" />
+                        <button type="submit" class="btn btn-primary px-4" style="border-radius: 20px;">Đăng bài</button>
                     </div>
                 }
-                @if (post.Comments != null && post.Comments.Any())
+            </div>
+
+            @using (Html.BeginForm("Newsfeed", "Post", FormMethod.Get))
+            {
+                <div class="input-group mb-3 shadow-sm" style="border-radius: 20px; overflow: hidden;">
+                    <input type="text" name="searchString" class="form-control border-0 px-3" placeholder="Tìm kiếm bài viết..." value="@ViewBag.SearchString" />
+                    <button type="submit" class="btn btn-primary px-3">Tìm kiếm</button>
+                    <a href="@Url.Action("Newsfeed", "Post")" class="btn btn-secondary px-3">Làm mới</a>
+                </div>
+            }
+
+            @if (Model != null && Model.Posts != null && Model.Posts.Any())
+            {
+                foreach (var post in Model.Posts)
                 {
-                    foreach (var comment in post.Comments.OrderBy(c => c.CreatedAt))
-                    {
-                        <div class="border rounded p-2 mb-2">
-                            <strong>
-                                @comment.User.Username
-                            </strong>
-
-                            <p class="mb-1">
-                                @comment.Content
-                            </p>
-
-                            <small class="text-muted">
-                                @comment.CreatedAt
-                            </small>
-                            ```cshtml
-                            @if (comment.UserId == Model.CurrentUserId)
-                            {
-                                <div class="mt-2">
-
-                                    @* Form sửa bình luận *@
-                                    @using (Html.BeginForm("EditComment", "Post", FormMethod.Post))
-                                    {
-                                        @Html.AntiForgeryToken()
-
-                                        <input type="hidden"
-                                               name="id"
-                                               value="@comment.CommentId" />
-
-                                        <div class="input-group mb-2">
-                                            <input type="text"
-                                                   name="Content"
-                                                   class="form-control"
-                                                   value="@comment.Content"
-                                                   maxlength="1000"
-                                                   required />
-
-                                            <button type="submit"
-                                                    class="btn btn-warning btn-sm">
-                                                Lưu sửa
-                                            </button>
-                                        </div>
-                                    }
-
-                                    @* Form xóa bình luận *@
-                                    @using (Html.BeginForm("DeleteComment", "Post", FormMethod.Post))
-                                    {
-                                        @Html.AntiForgeryToken()
-
-                                        <input type="hidden"
-                                               name="id"
-                                               value="@comment.CommentId" />
-
-                                        <button type="submit"
-                                                class="btn btn-danger btn-sm"
-                                                onclick="return confirm('Bạn có chắc muốn xóa bình luận này không?');">
-                                            Xóa bình luận
-                                        </button>
-                                    }
-
-                                </div>
-                            }
-                            ```
+                    <div class="card p-4 mb-3">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="@(string.IsNullOrEmpty(post.User?.AvatarUrl) ? "https://cdn.icon-icons.com/icons2/1378/PNG/512/avatardefault_92824.png" : post.User?.AvatarUrl)" class="user-avatar" alt="Avatar" />
+                            <div>
+                                <h6 class="mb-0 fw-bold">@(post.User?.Username ?? "Người dùng")</h6>
+                                <small class="text-muted">@post.CreatedAt</small>
+                            </div>
                         </div>
-                    }
-                }
-                else
-                {
-                    <p class="text-muted">Chưa có bình luận nào.</p>
-                }
 
-                @if (post.UserId == Model.CurrentUserId)
-                {
-                    <div class="mt-3">
+                        <p style="white-space: pre-wrap;" class="mb-3">@post.Content</p>
 
-                        <a href="@Url.Action("EditPost", "Post", new { id = post.PostId })"
-                           class="btn btn-warning btn-sm">
-                            Sửa bài viết
-                        </a>
+                        @if (!string.IsNullOrEmpty(post.ImageUrl))
+                        {
+                            <div class="text-center mb-3">
+                                <img src="@post.ImageUrl" class="img-fluid rounded" style="max-height: 400px; width: 100%; object-fit: cover;" />
+                            </div>
+                        }
 
-                        @using (Html.BeginForm("DeletePost", "Post",
-                            FormMethod.Post))
+                        <div class="mb-3 d-flex align-items-center">
+                            <div class="reaction-container">
+                                <div class="reaction-box">
+                                    <span class="reaction-icon" data-type="Like" title="Thích">👍</span>
+                                    <span class="reaction-icon" data-type="Love" title="Yêu thích">❤️</span>
+                                    <span class="reaction-icon" data-type="Care" title="Thương thương">🥰</span>
+                                    <span class="reaction-icon" data-type="Haha" title="Haha">😆</span>
+                                    <span class="reaction-icon" data-type="Wow" title="Wow">😮</span>
+                                    <span class="reaction-icon" data-type="Sad" title="Buồn">😢</span>
+                                    <span class="reaction-icon" data-type="Angry" title="Phẫn nộ">😡</span>
+                                </div>
+
+                                @using (Html.BeginForm("ToggleLike", "Post", FormMethod.Post, new { @class = "like-form d-inline" }))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="postId" value="@post.PostId" />
+                                    <input type="hidden" name="type" class="reaction-input" value="Like" />
+                                    <button type="submit" class="btn btn-sm btn-react @(likedPostIds.Contains(post.PostId) ? "btn-primary" : "btn-outline-primary")" style="border-radius: 20px;">
+                                        @(likedPostIds.Contains(post.PostId) ? "❤️ Đã thích" : "👍 Thích")
+                                    </button>
+                                }
+                            </div>
+                            <span class="ms-2 text-muted">❤️ <span class="like-count fw-bold">@(likeCounts.ContainsKey(post.PostId) ? likeCounts[post.PostId] : 0)</span> lượt thích</span>
+                        </div>
+
+                        <hr />
+
+                        <h6 class="fw-bold mb-2 small text-uppercase text-muted">Bình luận</h6>
+
+                        @using (Html.BeginForm("CreateComment", "Post", FormMethod.Post))
                         {
                             @Html.AntiForgeryToken()
+                            <input type="hidden" name="postId" value="@post.PostId" />
+                            <div class="input-group mb-3">
+                                <input type="text" name="Content" class="form-control form-control-sm" placeholder="Viết bình luận..." maxlength="1000" style="border-radius: 20px 0 0 20px;" required />
+                                <button type="submit" class="btn btn-primary btn-sm px-3" style="border-radius: 0 20px 20px 0;">Gửi</button>
+                            </div>
+                        }
 
-                            <input type="hidden"
-                                   name="id"
-                                   value="@post.PostId" />
+                        @if (post.Comments != null && post.Comments.Any())
+                        {
+                            foreach (var comment in post.Comments.OrderBy(c => c.CreatedAt))
+                            {
+                                <div class="bg-light border rounded p-2 mb-2 small">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <strong class="me-2">@(comment.User?.Username ?? "Người dùng")</strong>
+                                        <span class="text-muted" style="font-size: 0.7rem;">@comment.CreatedAt</span>
+                                    </div>
+                                    <p class="mb-1 text-dark">@comment.Content</p>
 
-                            <button type="submit"
-                                    class="btn btn-danger btn-sm"
-                                    onclick="return confirm('Bạn có chắc muốn xóa bài viết này không?');">
-                                Xóa bài viết
-                            </button>
+                                    @if (comment.UserID == Model.CurrentUserId)
+                                    {
+                                        <div class="mt-1">
+                                            @using (Html.BeginForm("DeleteComment", "Post", FormMethod.Post, new { @class = "d-inline" }))
+                                            {
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@comment.CommentID" />
+                                                <button type="submit" class="btn btn-link text-danger p-0 me-2" style="font-size: 0.75rem;" onclick="return confirm('Xóa bình luận này?');">Xóa</button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+
+                        @if (post.UserId == Model.CurrentUserId)
+                        {
+                            <div class="mt-3 text-end border-top pt-2">
+                                <a href="@Url.Action("EditPost", "Post", new { id = post.PostId })" class="btn btn-warning btn-sm px-3" style="border-radius: 15px; font-size: 0.8rem;">Sửa</a>
+                                @using (Html.BeginForm("DeletePost", "Post", FormMethod.Post, new { @class = "d-inline" }))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@post.PostId" />
+                                    <button type="submit" class="btn btn-danger btn-sm px-3 ms-1" style="border-radius: 15px; font-size: 0.8rem;" onclick="return confirm('Xóa bài viết này?');">Xóa</button>
+                                }
+                            </div>
                         }
 
                     </div>
                 }
+            }
+            else
+            {
+                <div class="alert alert-warning text-center">Chưa có bài viết nào trên bảng tin.</div>
+            }
+        </div>
+
+        <div class="col-md-3 d-none d-md-block">
+            <div class="sidebar-sticky">
+
+                <div class="card p-3 mb-3">
+                    <h6 class="fw-bold text-secondary mb-3">Bài viết mới nhất</h6>
+                    @if (Model != null && Model.Posts != null && Model.Posts.Any())
+                    {
+                        foreach (var p in Model.Posts.Take(3))
+                        {
+                            <div class="mb-2 pb-2 border-bottom">
+                                <p class="small mb-1 fw-bold text-truncate text-dark">@p.Content</p>
+                                <small class="text-muted" style="font-size: 0.75rem;">@p.CreatedAt</small>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-0">Chưa có bài viết nào.</p>
+                    }
+                </div>
+
+                <div class="card p-3">
+                    <h6 class="fw-bold text-secondary mb-3">Nhóm của bạn</h6>
+                    <ul class="list-unstyled mb-0 small text-muted">
+                        <li class="mb-2">👥 Cộng đồng Công nghệ</li>
+                        <li class="mb-2">🎮 Góc giải trí & Game</li>
+                        <li>🚀 Chia sẻ kinh nghiệm</li>
+                    </ul>
+                </div>
 
             </div>
-        }
-    }
-    else
-    {
-        <div class="alert alert-warning">
-            Chưa có bài viết nào.
         </div>
-    }
 
+    </div>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        const icons = {
+            'Like': '👍 Thích',
+            'Love': '❤️ Yêu thích',
+            'Care': '🥰 Thương thương',
+            'Haha': '😆 Haha',
+            'Wow': '😮 Wow',
+            'Sad': '😢 Buồn',
+            'Angry': '😡 Phẫn nộ'
+        };
 
-        document.querySelectorAll(".like-form").forEach(function (form) {
+        document.querySelectorAll(".reaction-icon").forEach(function (icon) {
+            icon.addEventListener("click", function () {
+                var type = this.getAttribute("data-type");
+                var container = this.closest(".reaction-container");
+                var form = container.querySelector(".like-form");
+                var inputType = form.querySelector(".reaction-input");
 
-            form.addEventListener("submit", function (e) {
-
-                e.preventDefault();
-
-                fetch(form.action, {
-                    method: "POST",
-                    body: new FormData(form)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-
-                        if (data.success) {
-                            var button = form.querySelector("button");
-                            var count = form.querySelector(".like-count");
-
-                            count.textContent = data.totalLikes;
-
-                            if (data.isLiked) {
-                                button.textContent = "❤️ Đã thích";
-                                button.classList.remove("btn-outline-primary");
-                                button.classList.add("btn-primary");
-                            }
-                            else {
-                                button.textContent = "🤍 Like";
-                                button.classList.remove("btn-primary");
-                                button.classList.add("btn-outline-primary");
-                            }
-                        }
-                        else {
-                            alert(data.message);
-                        }
-
-                    })
-                    .catch(error => {
-                        alert("Có lỗi xảy ra khi thực hiện Like!");
-                        console.error(error);
-                    });
-
+                inputType.value = type;
+                form.dispatchEvent(new Event('submit', { cancelable: true }));
             });
-
         });
 
+        document.querySelectorAll(".like-form").forEach(function (form) {
+            form.addEventListener("submit", function (e) {
+                e.preventDefault();
+                fetch(form.action, { method: "POST", body: new FormData(form) })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            var button = form.querySelector(".btn-react");
+                            var count = form.closest(".card").querySelector(".like-count");
+                            count.textContent = data.totalLikes;
+
+                            if (data.userReaction) {
+                                button.textContent = icons[data.userReaction] || "❤️ Đã thích";
+                                button.className = "btn btn-sm btn-react btn-primary";
+                            } else {
+                                button.textContent = "👍 Thích";
+                                button.className = "btn btn-sm btn-react btn-outline-primary";
+                            }
+                        }
+                    });
+            });
+        });
     });
 </script>
-```

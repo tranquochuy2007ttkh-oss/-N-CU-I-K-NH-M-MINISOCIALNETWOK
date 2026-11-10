@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Web;
 
 namespace MiniSocialMedia.Models
 {
@@ -11,22 +8,21 @@ namespace MiniSocialMedia.Models
     public class Comment
     {
         [Key]
-        public int CommentId { get; set; }
+        public int CommentID { get; set; }
 
-        public int PostId { get; set; }
-
-        public int UserId { get; set; }
+        public int PostID { get; set; }
+        public int UserID { get; set; }
 
         [Required(ErrorMessage = "Nội dung bình luận không được để trống")]
         [StringLength(1000, ErrorMessage = "Bình luận tối đa 1000 ký tự")]
         public string Content { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-        [ForeignKey("PostId")]
+        [ForeignKey("PostID")]
         public virtual Post Post { get; set; }
 
-        [ForeignKey("UserId")]
+        [ForeignKey("UserID")]
         public virtual User User { get; set; }
     }
 }
